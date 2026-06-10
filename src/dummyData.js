@@ -23,31 +23,32 @@ export const dummyDashboardData = {
     { id: 5, theme: '리츠·배당',  level: '중립',        desc: '금리 동결 기대감에 커뮤니티 관망 분위기',  type: 'fear'  },
     { id: 6, theme: '게임',       level: '광기 주의보', desc: '신작 출시 기대로 매수 언급 폭증',           type: 'greed' },
   ],
+  // 개미지수 score: 0~100 (50=중립, BE 컨벤션 일치)
   fearTop5: [
-    { rank: 1, name: '에코프로비엠', ticker: '247540', price: 87500,  change: '-8.32%', score: -92 },
-    { rank: 2, name: '카카오',       ticker: '035720', price: 38200,  change: '-4.71%', score: -81 },
-    { rank: 3, name: '셀트리온',     ticker: '068270', price: 154000, change: '-3.50%', score: -74 },
-    { rank: 4, name: 'SK이노베이션', ticker: '096770', price: 98100,  change: '-2.90%', score: -67 },
-    { rank: 5, name: '포스코퓨처엠', ticker: '003670', price: 192500, change: '-2.10%', score: -61 },
+    { rank: 1, name: '에코프로비엠', ticker: '247540', price: 87500,  change: '-8.32%', score: 4   },
+    { rank: 2, name: '카카오',       ticker: '035720', price: 38200,  change: '-4.71%', score: 9.5 },
+    { rank: 3, name: '셀트리온',     ticker: '068270', price: 154000, change: '-3.50%', score: 13  },
+    { rank: 4, name: 'SK이노베이션', ticker: '096770', price: 98100,  change: '-2.90%', score: 16.5},
+    { rank: 5, name: '포스코퓨처엠', ticker: '003670', price: 192500, change: '-2.10%', score: 19.5},
   ],
   greedTop5: [
-    { rank: 1, name: 'HD현대중공업', ticker: '329180', price: 218000, change: '+9.80%', score: 94 },
-    { rank: 2, name: 'SK하이닉스',   ticker: '000660', price: 189500, change: '+5.43%', score: 88 },
-    { rank: 3, name: '한화에어로스페이스', ticker: '012450', price: 312000, change: '+4.20%', score: 79 },
-    { rank: 4, name: 'NAVER',        ticker: '035420', price: 184000, change: '+3.10%', score: 71 },
-    { rank: 5, name: '삼성전자',     ticker: '005930', price: 74800,  change: '+2.30%', score: 62 },
+    { rank: 1, name: 'HD현대중공업',       ticker: '329180', price: 218000, change: '+9.80%', score: 97   },
+    { rank: 2, name: 'SK하이닉스',         ticker: '000660', price: 189500, change: '+5.43%', score: 94   },
+    { rank: 3, name: '한화에어로스페이스', ticker: '012450', price: 312000, change: '+4.20%', score: 89.5 },
+    { rank: 4, name: 'NAVER',              ticker: '035420', price: 184000, change: '+3.10%', score: 85.5 },
+    { rank: 5, name: '삼성전자',           ticker: '005930', price: 74800,  change: '+2.30%', score: 81   },
   ],
 };
 
 
 // ── MarketAnalysisScreen에 전달되는 데이터 ───────────────────────────────
 // analysisData 구조:
-//   antIndex     - 전체 시장 개미 지수 (-100 ~ 100)
+//   antIndex     - 전체 시장 개미 지수 (0~100, 50=중립)
 //   lastUpdated  - 마지막 분석 시각
 //   aiSummary    - AI 분석 요약 텍스트
-//   sectors      - 섹터별 감성 지수 배열
+//   sectors      - 섹터별 감성 지수 배열 (0~100)
 export const dummyAnalysisData = {
-  antIndex: -68,
+  antIndex: 16,
   lastUpdated: '15:30',
   aiSummary:
     '현재 시장은 전반적인 공포 구간에 진입했습니다. ' +
@@ -57,14 +58,14 @@ export const dummyAnalysisData = {
     '섹터 간 괴리가 극명합니다. 과거 유사 패턴에서는 공포 절정 후 단기 반등이 ' +
     '나타난 사례가 많으나, 매크로 불확실성이 해소되지 않아 신중한 접근이 필요합니다.',
   sectors: [
-    { name: '반도체',    score: -45, trend: '하락세 지속 — 외국인 매도 집중' },
-    { name: '2차전지',   score: -88, trend: '극단적 공포 — 패닉셀 급증' },
-    { name: '바이오',    score: -62, trend: '공포 구간 — 루머 확산 중' },
-    { name: 'AI·소프트웨어', score: 34, trend: '중립(강세) — 실적 기대감' },
-    { name: '조선·방산', score: 79, trend: '탐욕 구간 — 수주 기대' },
-    { name: '리츠·배당', score: -18, trend: '중립(약세) — 금리 관망' },
-    { name: '게임',      score: 55, trend: '탐욕 구간 — 신작 기대' },
-    { name: '금융·은행', score: 12, trend: '중립 — 금리 수혜 기대' },
+    { name: '반도체',        score: 27.5, trend: '하락세 지속 — 외국인 매도 집중' },
+    { name: '2차전지',       score: 6,    trend: '극단적 공포 — 패닉셀 급증' },
+    { name: '바이오',        score: 19,   trend: '공포 구간 — 루머 확산 중' },
+    { name: 'AI·소프트웨어', score: 67,   trend: '중립(강세) — 실적 기대감' },
+    { name: '조선·방산',     score: 89.5, trend: '탐욕 구간 — 수주 기대' },
+    { name: '리츠·배당',     score: 41,   trend: '중립(약세) — 금리 관망' },
+    { name: '게임',          score: 77.5, trend: '탐욕 구간 — 신작 기대' },
+    { name: '금융·은행',     score: 56,   trend: '중립 — 금리 수혜 기대' },
   ],
 };
 
@@ -78,16 +79,17 @@ export const dummyExploreData = {
     '에코프로', 'SK하이닉스', '삼성전자', 'NAVER', '카카오',
     '한화에어로', 'HD현대중공업', '셀트리온', '포스코퓨처엠', 'LG에너지솔루션',
   ],
+  // score: 0~100 (50=중립)
   antIndexRankings: [
-    { rank: 1,  name: 'HD현대중공업',      ticker: '329180', price: 218000, change: '+9.80%', score: 94,  isDown: false, changeAmount: 19400  },
-    { rank: 2,  name: 'SK하이닉스',        ticker: '000660', price: 189500, change: '+5.43%', score: 88,  isDown: false, changeAmount: 9750   },
-    { rank: 3,  name: '한화에어로스페이스', ticker: '012450', price: 312000, change: '+4.20%', score: 79,  isDown: false, changeAmount: 12580  },
-    { rank: 4,  name: 'NAVER',             ticker: '035420', price: 184000, change: '+3.10%', score: 71,  isDown: false, changeAmount: 5540   },
-    { rank: 5,  name: '삼성전자',          ticker: '005930', price: 74800,  change: '+2.30%', score: 62,  isDown: false, changeAmount: 1680   },
-    { rank: 6,  name: 'SK이노베이션',      ticker: '096770', price: 98100,  change: '-2.90%', score: -67, isDown: true,  changeAmount: -2930  },
-    { rank: 7,  name: '포스코퓨처엠',      ticker: '003670', price: 192500, change: '-2.10%', score: -61, isDown: true,  changeAmount: -4130  },
-    { rank: 8,  name: '셀트리온',          ticker: '068270', price: 154000, change: '-3.50%', score: -74, isDown: true,  changeAmount: -5600  },
-    { rank: 9,  name: '카카오',            ticker: '035720', price: 38200,  change: '-4.71%', score: -81, isDown: true,  changeAmount: -1880  },
-    { rank: 10, name: '에코프로비엠',      ticker: '247540', price: 87500,  change: '-8.32%', score: -92, isDown: true,  changeAmount: -7940  },
+    { rank: 1,  name: 'HD현대중공업',       ticker: '329180', price: 218000, change: '+9.80%', score: 97,   isDown: false, changeAmount: 19400  },
+    { rank: 2,  name: 'SK하이닉스',         ticker: '000660', price: 189500, change: '+5.43%', score: 94,   isDown: false, changeAmount: 9750   },
+    { rank: 3,  name: '한화에어로스페이스', ticker: '012450', price: 312000, change: '+4.20%', score: 89.5, isDown: false, changeAmount: 12580  },
+    { rank: 4,  name: 'NAVER',              ticker: '035420', price: 184000, change: '+3.10%', score: 85.5, isDown: false, changeAmount: 5540   },
+    { rank: 5,  name: '삼성전자',           ticker: '005930', price: 74800,  change: '+2.30%', score: 81,   isDown: false, changeAmount: 1680   },
+    { rank: 6,  name: 'SK이노베이션',       ticker: '096770', price: 98100,  change: '-2.90%', score: 16.5, isDown: true,  changeAmount: -2930  },
+    { rank: 7,  name: '포스코퓨처엠',       ticker: '003670', price: 192500, change: '-2.10%', score: 19.5, isDown: true,  changeAmount: -4130  },
+    { rank: 8,  name: '셀트리온',           ticker: '068270', price: 154000, change: '-3.50%', score: 13,   isDown: true,  changeAmount: -5600  },
+    { rank: 9,  name: '카카오',             ticker: '035720', price: 38200,  change: '-4.71%', score: 9.5,  isDown: true,  changeAmount: -1880  },
+    { rank: 10, name: '에코프로비엠',       ticker: '247540', price: 87500,  change: '-8.32%', score: 4,    isDown: true,  changeAmount: -7940  },
   ],
 };

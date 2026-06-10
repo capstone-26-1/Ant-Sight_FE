@@ -1,9 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Bell, Search, TrendingDown, TrendingUp,
-  Zap, Bookmark, ChevronRight
+  Bookmark, ChevronRight, Sparkles
 } from 'lucide-react';
 import Sidebar from './Sidebar';
+import { mt } from './memeTexts';
+import { stockApi } from './api/stocks';
+import { antIndexApi } from './api/antIndex';
+import TOP_100_STOCKS from './top100Stocks.json';
+import MarketZoneGauge from './MarketZoneGauge';
+import VoljumpCardGrid from './VoljumpCardGrid';
+
+// ticker → 종목명 lookup (랭킹 응답에는 name이 없으므로 클라이언트에서 조인)
+const TICKER_NAME_MAP = (() => {
+  const m = new Map();
+  for (const s of TOP_100_STOCKS) m.set(s.ticker, s.name);
+  return m;
+})();
+
+const RANK_WINDOW_OPTIONS = [
+  { id: '1h',  label: '1시간' },
+  { id: '24h', label: '24시간' },
+];
 
 // =========================================================================
 // DashBoardScreen - 홈 화면
@@ -37,13 +55,92 @@ export default function DashBoardScreen({
   unreadCount = 0,
   onToggleNotifications,
   dashboardData = null,
+  memeMode = false,
+  authUser = null,
+  onOpenDailySummary,
 }) {
   const [searchInput, setSearchInput] = useState('');
 
-  const lastUpdated  = dashboardData?.lastUpdated  ?? null;
-  const themeAlerts  = dashboardData?.themeAlerts  ?? [];
-  const fearTop5     = dashboardData?.fearTop5     ?? [];
-  const greedTop5    = dashboardData?.greedTop5    ?? [];
+  // 랭킹 window 토글 (15m / 1h / 24h) — 긍정/부정 양쪽에 동일 적용
+  const [rankWindow, setRankWindow] = useState('24h');
+
+  // 서버 랭킹 응답 — 비로그인/실패 시 null → dashboardData fallback 사용
+  const [positiveRanking, setPositiveRanking] = useState(null); // { window, direction, items }
+  const [negativeRanking, setNegativeRanking] = useState(null);
+  const [rankingUpdatedAt, setRankingUpdatedAt] = useState(null);
+
+  // 관심 종목 미리보기 시세 ({ [ticker]: QuoteResponse }) — 진입 시 1회 조회.
+  const [previewQuotes, setPreviewQuotes] = useState({});
+
+  const isLoggedInUser = authUser?.type === 'user';
+
+  // ── 관심 종목 미리보기(상위 3개) 시세 조회 — 로그인 사용자만 ──────────
+  useEffect(() => {
+    if (!isLoggedInUser || bookmarks.length === 0) return;
+    let cancelled = false;
+    const top3 = bookmarks.slice(0, 3);
+    Promise.all(
+      top3.map(b =>
+        stockApi.getQuote(b.ticker)
+          .then(q => [b.ticker, q])
+          .catch(() => [b.ticker, null])
+      )
+    ).then(entries => {
+      if (cancelled) return;
+      setPreviewQuotes(Object.fromEntries(entries));
+    });
+    return () => { cancelled = true; };
+  }, [isLoggedInUser, bookmarks]);
+
+  const lastUpdated  = rankingUpdatedAt
+    ?? dashboardData?.lastUpdated
+    ?? null;
+
+  // ── 랭킹 fetch (로그인 사용자만) ─────────────────────────────────────
+  useEffect(() => {
+    if (!isLoggedInUser) return;
+    let cancelled = false;
+    Promise.all([
+      antIndexApi.getRanking({ window: rankWindow, direction: 'positive', limit: 5 }),
+      antIndexApi.getRanking({ window: rankWindow, direction: 'negative', limit: 5 }),
+    ])
+      .then(([pos, neg]) => {
+        if (cancelled) return;
+        setPositiveRanking(pos);
+        setNegativeRanking(neg);
+        setRankingUpdatedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
+      })
+      .catch(err => {
+        if (cancelled || err.status === 401) return;
+        // 실패 시 dashboardData 더미로 fallback
+        setPositiveRanking(null);
+        setNegativeRanking(null);
+      });
+    return () => { cancelled = true; };
+  }, [isLoggedInUser, rankWindow]);
+
+  // 서버 응답 → StockRankTable 포맷 변환 ({rank, name, ticker, score})
+  // score는 BE/FE 모두 0~100 스케일 (50=중립).
+  const mapRanking = (resp) => (resp?.items ?? []).map((it, i) => ({
+    rank: i + 1,
+    ticker: it.ticker,
+    name: TICKER_NAME_MAP.get(it.ticker) ?? it.ticker,
+    score: it.avgScore != null ? Number(it.avgScore) : null,
+    postCount: it.postCount,
+    // price / change는 ranking API에 없음 → 미표시
+    price: null,
+    change: null,
+  }));
+
+  // 긍정 = 탐욕(greed), 부정 = 공포(fear)
+  const greedTop5 = useMemo(
+    () => positiveRanking ? mapRanking(positiveRanking) : (dashboardData?.greedTop5 ?? []),
+    [positiveRanking, dashboardData]
+  );
+  const fearTop5 = useMemo(
+    () => negativeRanking ? mapRanking(negativeRanking) : (dashboardData?.fearTop5 ?? []),
+    [negativeRanking, dashboardData]
+  );
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
@@ -82,76 +179,82 @@ export default function DashBoardScreen({
         {/* 대시보드 콘텐츠 */}
         <div className="p-8 max-w-7xl mx-auto w-full space-y-6">
 
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <h1 className="text-2xl font-bold text-slate-900">시장 요약</h1>
-            <p className="text-sm text-slate-500">
-              {lastUpdated ? `마지막 업데이트: ${lastUpdated}` : '데이터 로딩 전'}
-            </p>
+            <div className="flex items-center gap-3">
+              {isLoggedInUser && bookmarks.length > 0 && onOpenDailySummary && (
+                <button
+                  onClick={onOpenDailySummary}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-sm"
+                  title="오늘의 북마크 요약 보기"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  오늘의 요약
+                </button>
+              )}
+              <p className="text-sm text-slate-500">
+                {lastUpdated ? `마지막 업데이트: ${lastUpdated}` : '데이터 로딩 전'}
+              </p>
+            </div>
           </div>
 
-          {/* ── 급등락 테마 알림 (전체 너비) ── */}
-          {/* 개미지수 게이지가 삭제되어 테마 알림이 상단 전체 차지 */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-            <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
-              <Zap className="w-5 h-5 text-yellow-500" />
-              급등락 테마 알림
-            </h2>
-            {themeAlerts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {themeAlerts.map(alert => (
-                  <div
-                    key={alert.id}
-                    className={`p-4 rounded-xl border ${
-                      alert.type === 'fear'
-                        ? 'bg-blue-50 border-blue-100'
-                        : 'bg-red-50 border-red-100'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-slate-800">{alert.theme}</span>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                        alert.type === 'fear'
-                          ? 'bg-blue-200 text-blue-800'
-                          : 'bg-red-200 text-red-800'
-                      }`}>
-                        {alert.level}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600">{alert.desc}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                <Zap className="w-8 h-8 mb-2 text-slate-300" />
-                <p className="text-sm">테마 알림 데이터를 불러오는 중...</p>
-              </div>
-            )}
-          </div>
+          {/* ── 시장 zone 게이지 (캡스톤 §5 디리스킹 가이드) ── */}
+          <MarketZoneGauge />
+
+          {/* ── 변동성 점프 경보 (Model B — 신규 진입 회피 신호) ── */}
+          {isLoggedInUser && (
+            <VoljumpCardGrid
+              title="변동성 점프 경보 — 신규 진입 회피 신호"
+              minProb={0.1}
+              limit={12}
+              onSelect={(stock) => onNavigate('explore', stock)}
+            />
+          )}
 
           {/* ── 공포 / 탐욕 TOP 5 ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            {/* window 토글 — 로그인 사용자에게만 노출 (게스트는 더미 fallback) */}
+            {isLoggedInUser && (
+              <div className="flex justify-end">
+                <div className="inline-flex bg-slate-100 p-0.5 rounded-lg">
+                  {RANK_WINDOW_OPTIONS.map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setRankWindow(opt.id)}
+                      className={`px-3 py-1 text-xs rounded-md font-bold transition-all ${
+                        rankWindow === opt.id
+                          ? 'bg-white text-slate-900 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            {/* 공포 TOP 5 */}
-            <StockRankTable
-              title="실시간 비명(공포) TOP 5"
-              icon={<TrendingDown className="w-5 h-5 text-blue-500" />}
-              stocks={fearTop5}
-              scoreColor="blue"
-              // 종목 클릭 → 탐색 탭 열기 + 해당 종목 인라인 표시
-              onStockClick={(stock) => onNavigate('explore', stock)}
-              onMoreClick={() => onNavigate('explore')}
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 공포 TOP 5 — 부정 (negative direction) */}
+              <StockRankTable
+                title={mt('fear_top5_title', memeMode)}
+                icon={<TrendingDown className="w-5 h-5 text-blue-500" />}
+                stocks={fearTop5}
+                scoreColor="blue"
+                onStockClick={(stock) => onNavigate('explore', stock)}
+                onMoreClick={() => onNavigate('explore')}
+              />
 
-            {/* 탐욕 TOP 5 */}
-            <StockRankTable
-              title="실시간 광기(탐욕) TOP 5"
-              icon={<TrendingUp className="w-5 h-5 text-red-500" />}
-              stocks={greedTop5}
-              scoreColor="red"
-              onStockClick={(stock) => onNavigate('explore', stock)}
-              onMoreClick={() => onNavigate('explore')}
-            />
+              {/* 탐욕 TOP 5 — 긍정 (positive direction) */}
+              <StockRankTable
+                title={mt('greed_top5_title', memeMode)}
+                icon={<TrendingUp className="w-5 h-5 text-red-500" />}
+                stocks={greedTop5}
+                scoreColor="red"
+                onStockClick={(stock) => onNavigate('explore', stock)}
+                onMoreClick={() => onNavigate('explore')}
+              />
+            </div>
           </div>
 
           {/* ── 관심 종목 미리보기 ── */}
@@ -171,39 +274,47 @@ export default function DashBoardScreen({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {bookmarks.length > 0 ? (
-                bookmarks.slice(0, 3).map((item) => (
+                bookmarks.slice(0, 3).map((item) => {
+                  const q = previewQuotes[item.ticker];
+                  const isDown = q ? q.changeAmount < 0 : false;
+                  const isFlat = q ? q.changeAmount === 0 : false;
+                  const priceColor = !q ? 'text-slate-400'
+                    : isFlat ? 'text-slate-700'
+                    : isDown ? 'text-blue-500' : 'text-red-500';
+                  return (
                   <div
                     key={item.ticker}
                     className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => onNavigate('explore', item)}
                   >
-                    <div>
-                      <h3 className="font-bold text-slate-800">{item.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-slate-800 truncate">{item.name}</h3>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm text-slate-500">
-                          {item.price != null ? item.price.toLocaleString() : '--'}
+                        <span className={`text-sm font-semibold ${priceColor}`}>
+                          {q ? `${q.currentPrice.toLocaleString()}원` : '--'}
                         </span>
-                        <span className={`text-xs font-medium ${
-                          String(item.change ?? '').startsWith('+') ? 'text-red-500' : 'text-blue-500'
-                        }`}>
-                          {item.change ?? '--'}
-                        </span>
+                        {q && (
+                          <span className={`text-xs font-bold ${priceColor}`}>
+                            {q.changeRate > 0 ? '+' : ''}{q.changeRate.toFixed(2)}%
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xs text-slate-400 mb-1">개미 지수</div>
-                      <span className={`font-bold px-2 py-1 rounded text-xs ${
-                        (item.score ?? 0) > 50  ? 'bg-red-100 text-red-700' :
-                        (item.score ?? 0) < -50 ? 'bg-blue-100 text-blue-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
-                        {item.score != null
-                          ? (item.score > 0 ? `+${item.score}` : item.score)
-                          : '--'}
-                      </span>
+                    <div className="text-right ml-3 flex-shrink-0">
+                      <div className="text-xs text-slate-400 mb-1">{item.ticker}</div>
+                      {item.market && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          item.market === 'KOSPI'
+                            ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                            : 'bg-amber-50 text-amber-700 border border-amber-100'
+                        }`}>
+                          {item.market}
+                        </span>
+                      )}
                     </div>
                   </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="col-span-3 text-center py-8 text-slate-400">
                   <Bookmark className="w-8 h-8 mx-auto mb-2 text-slate-300" />
@@ -267,9 +378,7 @@ function StockRankTable({ title, icon, stocks, scoreColor, onStockClick, onMoreC
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className={`font-bold px-2.5 py-1 rounded-md ${scoreBg}`}>
-                      {stock.score != null
-                        ? (stock.score > 0 ? `+${stock.score}` : stock.score)
-                        : '--'}
+                      {stock.score != null ? Number(stock.score).toFixed(1) : '--'}
                     </span>
                   </td>
                 </tr>

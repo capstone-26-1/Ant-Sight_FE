@@ -30,7 +30,7 @@ import Sidebar from './Sidebar';
 //     ma5: '131,500',         // 5일 이동평균
 //     ma20: '145,200',        // 20일 이동평균
 //     low52: '118,000',       // 52주 최저가
-//     antIndex: -95,          // 개미 지수 (-100~100)
+//     antIndex: 4,            // 개미 지수 (0~100, 50=중립)
 //     aiReport: {             // AI 분석 리포트
 //       summary: '현재 커뮤니티는 ...',
 //       prediction: { label: '기술적 반등 (UP)', probability: 78 }
@@ -98,13 +98,13 @@ export default function StockDetailPageScreen({
     ? Math.floor(myAsset.cash / price)
     : null;
 
-  // antIndex → 단계 텍스트 변환
+  // antIndex → 단계 텍스트 변환 (0~100 스케일, 50=중립)
   const getAntIndexLabel = (idx) => {
-    if (idx == null)  return '데이터 없음';
-    if (idx <= -80)   return '비명 5단계: 투매 절정 구간';
-    if (idx <= -50)   return '비명: 공포 확산 구간';
-    if (idx <   0)    return '중립: 관망 분위기';
-    if (idx <=  50)   return '탐욕: 매수 심리 확산';
+    if (idx == null) return '데이터 없음';
+    if (idx <= 10)   return '비명 5단계: 투매 절정 구간';
+    if (idx <= 25)   return '비명: 공포 확산 구간';
+    if (idx <  50)   return '중립: 관망 분위기';
+    if (idx <= 75)   return '탐욕: 매수 심리 확산';
     return '광기: 과열 경보 구간';
   };
 
@@ -279,13 +279,13 @@ export default function StockDetailPageScreen({
                 <div className="flex justify-between items-end mb-2">
                   <span className="text-slate-400 text-sm font-medium">현재 개미 지수</span>
                   <span className="text-3xl font-black text-blue-400">
-                    {antIndex != null ? antIndex : '--'}
+                    {antIndex != null ? Number(antIndex).toFixed(1) : '--'}
                   </span>
                 </div>
                 <div className="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
                   <div
                     className="bg-blue-500 h-full rounded-full transition-all duration-500"
-                    style={{ width: antIndex != null ? `${(antIndex + 100) / 2}%` : '50%' }}
+                    style={{ width: antIndex != null ? `${antIndex}%` : '50%' }}
                   />
                 </div>
                 <div className="mt-3 flex items-center gap-2 text-sm font-bold text-blue-300 bg-blue-900/30 w-fit px-3 py-1.5 rounded-lg border border-blue-800">

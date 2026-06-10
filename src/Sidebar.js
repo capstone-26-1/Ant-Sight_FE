@@ -1,7 +1,7 @@
 import {
-  Home, Compass, BarChart2, Gamepad2,
+  Home, Compass,
   Bookmark, Activity, Settings,
-  Gamepad
+  BarChart2, Gamepad2, ShieldCheck, Trophy,
 } from 'lucide-react';
 
 // =========================================================================
@@ -61,26 +61,39 @@ export default function Sidebar({ currentPage, onNavigate }) {
             active={currentPage === 'explore'}
             onClick={() => onNavigate('explore')}
           />
-          {/* 종목 분석 → 시장 분석으로 변경 */}
           <NavItem
             icon={<BarChart2 size={20} />}
             label="시장 분석"
             active={currentPage === 'market-analysis'}
             onClick={() => onNavigate('market-analysis')}
           />
-          {/* 커뮤니티 피드 탭 제거됨 */}
+          <NavItem
+            icon={<ShieldCheck size={20} />}
+            label="개미지수 투자법"
+            active={currentPage === 'ant-strategy'}
+            onClick={() => onNavigate('ant-strategy')}
+          />
+          <NavItem
+            icon={<Trophy size={20} />}
+            label="LLM 전략 비교"
+            active={currentPage === 'llm-compare'}
+            onClick={() => onNavigate('llm-compare')}
+          />
           <NavItem
             icon={<Gamepad2 size={20} />}
             label="모의투자"
             active={currentPage === 'mock-invest'}
             onClick={() => onNavigate('mock-invest')}
           />
+          {/* [DEMO HIDE] OX미니게임 — 추후 복구 예정 */}
+          {/*
           <NavItem
             icon={<Gamepad size={20} />}
             label="OX미니게임"
             active={currentPage === 'mini-game-OX'}
             onClick={() => onNavigate('mini-game-OX')}
           />
+          */}
           <NavItem
             icon={<Bookmark size={20} />}
             label="북마크 (관심종목)"

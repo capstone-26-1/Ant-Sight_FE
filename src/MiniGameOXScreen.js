@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Bell, CheckCircle2, XCircle, Trophy, RotateCcw, BookOpen, ChevronRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, CheckCircle2, XCircle, BookOpen, ChevronRight } from 'lucide-react';
 import Sidebar from './Sidebar';
 import quizData from './OX_quiz.json';
 
@@ -41,13 +41,16 @@ export default function MiniGameOXScreen({
   const [modal, setModal] = useState(null);
 
   // ── 안 푼 문제 목록 계산 ─────────────────────────────────────────────
-  // quizData는 JSON에서 불러온 전체 배열
-  // solvedIds에 없는 문제만 필터링 → 원래 순서 유지
-  const unsolvedList  = quizData.filter(q => !solvedIds.includes(q.id));
-  const currentQuiz   = unsolvedList[0] ?? null; // 안 푼 문제 중 첫 번째
-  const totalCount    = quizData.length;
-  const solvedCount   = solvedIds.length;
-  const progressPct   = Math.round((solvedCount / totalCount) * 100);
+  const unsolvedList = quizData.filter(q => !solvedIds.includes(q.id));
+  const currentQuiz  = unsolvedList[0] ?? null;
+
+  // ── 전체 소진 시 조용히 자동 초기화 ──────────────────────────────────
+  useEffect(() => {
+    if (quizData.length > 0 && solvedIds.length >= quizData.length) {
+      setSolvedIds([]);
+      localStorage.removeItem('antsight_ox_solved');
+    }
+  }, [solvedIds]);
 
   // ── 답변 처리 ─────────────────────────────────────────────────────────
   // userAnswer: true(O 선택) / false(X 선택)
@@ -72,12 +75,6 @@ export default function MiniGameOXScreen({
   // ── 모달 닫기 (= 다음 문제로 이동) ───────────────────────────────────
   const handleCloseModal = () => setModal(null);
 
-  // ── 전체 초기화 ───────────────────────────────────────────────────────
-  const handleReset = () => {
-    setSolvedIds([]);
-    localStorage.removeItem('antsight_ox_solved');
-    setModal(null);
-  };
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
@@ -106,36 +103,16 @@ export default function MiniGameOXScreen({
         {/* 메인 콘텐츠: 수직/수평 가운데 정렬 */}
         <div className="flex-1 flex flex-col items-center justify-center p-8">
 
-          {/* ── 전체 완료 화면 ── */}
-          {currentQuiz === null ? (
-            <CompletionScreen totalCount={totalCount} onReset={handleReset} />
-          ) : (
-            /* ── 퀴즈 화면 ── */
+          {/* auto-reset 중 currentQuiz가 잠깐 null일 수 있으므로 null 가드 */}
+          {currentQuiz && (
             <div className="w-full max-w-xl">
-
-              {/* 진행률 바 */}
-              <div className="mb-6">
-                <div className="flex justify-between text-sm text-slate-500 mb-2">
-                  <span>진행률</span>
-                  <span className="font-bold text-slate-700">{solvedCount} / {totalCount}</span>
-                </div>
-                <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                  {/* width를 인라인 스타일로 제어: progressPct가 동적이므로 Tailwind 클래스로 표현 불가 */}
-                  <div
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-              </div>
 
               {/* 문제 카드 */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 mb-6">
-                {/* 문제 번호 배지 */}
                 <div className="inline-flex items-center bg-indigo-50 text-indigo-600 text-xs font-bold px-3 py-1.5 rounded-full border border-indigo-100 mb-5">
-                  Q. {currentQuiz.id} / {totalCount}
+                  Q.
                 </div>
 
-                {/* 문제 텍스트: 줄바꿈 없이 중앙 정렬 */}
                 <p className="text-xl font-bold text-slate-900 leading-relaxed text-center min-h-[5rem] flex items-center justify-center">
                   {currentQuiz.question}
                 </p>
@@ -143,7 +120,6 @@ export default function MiniGameOXScreen({
 
               {/* O / X 선택 버튼 */}
               <div className="grid grid-cols-2 gap-4">
-                {/* O 버튼 (빨간색 계열) */}
                 <button
                   onClick={() => handleAnswer(true)}
                   className="group flex flex-col items-center justify-center gap-2 bg-white border-2 border-red-200 rounded-2xl p-8 hover:bg-red-50 hover:border-red-400 hover:shadow-md transition-all active:scale-95"
@@ -156,7 +132,6 @@ export default function MiniGameOXScreen({
                   </span>
                 </button>
 
-                {/* X 버튼 (파란색 계열) */}
                 <button
                   onClick={() => handleAnswer(false)}
                   className="group flex flex-col items-center justify-center gap-2 bg-white border-2 border-blue-200 rounded-2xl p-8 hover:bg-blue-50 hover:border-blue-400 hover:shadow-md transition-all active:scale-95"
@@ -169,11 +144,6 @@ export default function MiniGameOXScreen({
                   </span>
                 </button>
               </div>
-
-              {/* 남은 문제 수 */}
-              <p className="text-center text-sm text-slate-400 mt-5">
-                남은 문제 <span className="font-bold">{unsolvedList.length}</span>개
-              </p>
             </div>
           )}
         </div>
@@ -252,37 +222,3 @@ function ResultModal({ isCorrect, answer, desc, onClose }) {
 }
 
 
-// =========================================================================
-// CompletionScreen - 모든 문제를 풀었을 때 표시되는 완료 화면
-//
-// props:
-//   totalCount - 전체 문제 수
-//   onReset    - 초기화 및 재시작
-// =========================================================================
-function CompletionScreen({ totalCount, onReset }) {
-  return (
-    <div className="text-center max-w-md w-full">
-      <div className="w-28 h-28 bg-yellow-50 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-yellow-200 shadow-lg">
-        <Trophy className="w-14 h-14 text-yellow-500" />
-      </div>
-
-      <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
-        모든 문제 완료!
-      </h2>
-      <p className="text-slate-500 leading-relaxed mb-2">
-        총 <span className="font-bold text-slate-800">{totalCount}개</span>의 퀴즈를 모두 풀었습니다.
-      </p>
-      <p className="text-slate-500 leading-relaxed mb-8">
-        초기화 후 다시 도전해 보세요!
-      </p>
-
-      <button
-        onClick={onReset}
-        className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold text-base hover:bg-indigo-700 transition-colors shadow-md"
-      >
-        <RotateCcw className="w-5 h-5" />
-        처음부터 다시 풀기
-      </button>
-    </div>
-  );
-}

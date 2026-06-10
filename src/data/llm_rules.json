@@ -1,0 +1,60 @@
+{
+  "ant_index_strategy": {
+    "name": "개미지수 디리스킹",
+    "source": "캡스톤 논문 §5",
+    "description": "시장 norm_zone 에 따라 주식 비중 자동 조정. 종목 선택은 화이트리스트 55개 균등.",
+    "rules": {
+      "weight_by_zone": {
+        "극공포": 1.0,
+        "공포": 1.0,
+        "중립": 1.0,
+        "탐욕": 0.6,
+        "극탐욕": 0.3
+      },
+      "exclude_voljump_alert": true,
+      "rebalance": "일간",
+      "universe": "화이트리스트 55종목 균등"
+    },
+    "csv_column": "개미 디리스킹"
+  },
+  "chatgpt_235": {
+    "name": "ChatGPT (235종목 universe)",
+    "source": "compare_llm_strategies.py docstring",
+    "description": "외국인 순매수 + 60일 모멘텀 + 추세(MA20>MA60) + 변동성 회피. 최대 5종목 동일가중 20%, 주간 리밸런싱, -8% 손절.",
+    "csv_column": "①ChatGPT(235)"
+  },
+  "chatgpt_full_55": {
+    "name": "ChatGPT-Full (55종목 universe)",
+    "source": "compare_llm_strategies.py docstring",
+    "description": "위와 동일 룰, universe 만 화이트리스트 55개로 한정.",
+    "csv_column": "①'ChatGPT-Full(55)"
+  },
+  "claude_compact": {
+    "name": "Claude (축약 구현)",
+    "source": "compare_llm_strategies.py docstring",
+    "description": "5 ETF 듀얼 모멘텀(6M 상위 2개 50:50) + 절대모멘텀(12M<무위험) + VKOSPI throttle (<20:100% / 20~30:50% / >30:0%). 월간 리밸런싱. ※ 멀티 ETF 데이터 부재로 단일 자산 + 현금으로 축약.",
+    "csv_column": "②Claude(축약)"
+  },
+  "gemini": {
+    "name": "Gemini",
+    "source": "compare_llm_strategies.py docstring",
+    "description": "KODEX200 vs 현금, 주봉 볼린저(20,2σ) + 일목구름(9/26/52) + VKOSPI. 필수: 주봉 종가>구름 위. 진입 10%/25% 분할. 익절 50%, 손절 전량.",
+    "csv_column": "③Gemini"
+  },
+  "buy_and_hold": {
+    "name": "Buy & Hold (벤치마크)",
+    "source": "단순 매수 보유",
+    "description": "시장 235종목 동일가중 매수 후 보유.",
+    "csv_column": "B&H"
+  },
+  "data_limits": {
+    "note": "데이터 한계 (정직 표시)",
+    "items": [
+      "KOSPI200/KODEX200 → 235종목 동일가중 시장지수로 프록시",
+      "VKOSPI → 시장 20일 연환산 RV(%) 로 프록시",
+      "Claude 멀티-ETF → 데이터 부재로 단일자산 + 현금으로 축약",
+      "CD91/무위험금리 → 0%",
+      "모든 신호 1일 지연, 거래비용 0.1%/회 적용"
+    ]
+  }
+}
